@@ -11,9 +11,6 @@ Client::Client()
     std::cout << "Application Client" << std::endl;
     m_tcpSocket = new QTcpSocket(this);
 
-    // La méthode lireTexte sera appelée sur le signal readyRead
-    connect(m_tcpSocket, SIGNAL(readyRead()), this, SLOT(lireTexte()));
-
     // La méthode afficherErreur sera appelée sur le signal error
     connect(m_tcpSocket, SIGNAL(error(QAbstractSocket::SocketError)),
             this, SLOT(afficherErreur(QAbstractSocket::SocketError)));
@@ -26,35 +23,29 @@ Client::Client()
 
     m_networkSession->open();
 
-    m_blockSize = 0;
     m_tcpSocket->abort();
 
+    // La méthode sessionOuverte sera appelée sur le signal opened
+    connect(m_tcpSocket, SIGNAL(disconnected()), this, SLOT(se_connecter()));
+    connect(m_tcpSocket, SIGNAL(connected()), this, SLOT(envoyer_gagne()));
+
     // connexion au serveur sur le port 53000
-    m_tcpSocket->connectToHost( QHostAddress("127.0.0.1").toString(),53000 );
+    se_connecter();
 }
 
-//###############################################################################################################
-// Méthode appelée lors de la réception d'un texte
-void Client::lireTexte()
+void Client::envoyer_gagne()
 {
-    QDataStream in(m_tcpSocket);
-    in.setVersion(QDataStream::Qt_4_0);
+    std::cout << "Quel numero d'enigme ?" << std::endl;
+    std::string nb;
+    std::cin >> nb;
 
-    if (m_blockSize == 0) {
-        if (m_tcpSocket->bytesAvailable() < (int)sizeof(quint16))
-            return;
+    envoiTexte("GAGNE:"+nb);
+    m_tcpSocket->close();
+}
 
-        in >> m_blockSize;
-    }
-
-    if (m_tcpSocket->bytesAvailable() < m_blockSize)
-        return;
-
-    QString texte;
-    in >> texte;
-
-    std::cout << texte.toStdString() << std::endl;
-    m_blockSize = 0;
+void Client::se_connecter()
+{
+    m_tcpSocket->connectToHost( QHostAddress("127.0.0.1").toString(),53000 );
 }
 
 //###############################################################################################################
@@ -73,6 +64,24 @@ void Client::afficherErreur(QAbstractSocket::SocketError socketError)
     default:
         std::cout << "L'erreur suivante s'est produite : " << m_tcpSocket->errorString().toStdString() << std::endl;
     }
+}
+
+
+//###############################################################################################################
+// Méthode envoyant un texte au client
+void Client::envoiTexte( const std::string& s )
+{
+    std::cout << "Envoi de : " << s << std::endl;
+    QString texte = tr(s.c_str());
+    QByteArray block;
+    QDataStream out(&block, QIODevice::WriteOnly);
+    out.setVersion(QDataStream::Qt_4_0);
+    out << (quint16)0;
+    out << texte;
+    out.device()->seek(0);
+    out << (quint16)(block.size() - sizeof(quint16));
+
+    m_tcpSocket->write(block);
 }
 
 

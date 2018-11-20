@@ -16,12 +16,15 @@ public:
     Client();
 
 private slots:
-    void lireTexte();
     void afficherErreur(QAbstractSocket::SocketError socketError);
+    void envoyer_gagne();
+    void se_connecter();
 
+	private:
+	    void envoiTexte( const std::string& s);
+	
 private:
     QTcpSocket *m_tcpSocket;
-    quint16 m_blockSize;
     QNetworkSession *m_networkSession;
 };
 
